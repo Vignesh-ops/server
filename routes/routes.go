@@ -6,16 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"github.com/gin-contrib/cors"
+	"time"
 
 )
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"https://server-production-33bb.up.railway.app"}, // Allow requests from frontend
-        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-        AllowCredentials: true, // Allow cookies and credentials
-    }))
+		AllowAllOrigins: true, // This allows all origins
+		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:   []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true, // Optional: only set to true if you need to send cookies
+		MaxAge:          12 * time.Hour,
+	}))
 	r.OPTIONS("/*path", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
