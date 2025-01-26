@@ -11,11 +11,19 @@ import (
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"https://server-production-33bb.up.railway.app/"}, // Allow requests from frontend
+        AllowOrigins:     []string{"https://server-production-33bb.up.railway.app"}, // Allow requests from frontend
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         AllowCredentials: true, // Allow cookies and credentials
     }))
+	r.OPTIONS("/*path", func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Status(http.StatusNoContent)
+	})
+	
 	// Register routes for posts
 	r.GET("/posts", getPosts)
 	r.POST("/posts", createPost)
