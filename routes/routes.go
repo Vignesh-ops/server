@@ -30,6 +30,20 @@ func UserRoutes(r *gin.Engine) {
 	// Register routes for posts
 	r.GET("/posts", getPosts)
 	r.POST("/posts", createPost)
+	r.DELETE("/posts/:id", deletePost) // New DELETE route
+	
+}
+
+func deletePost(c *gin.Context) {
+	id := c.Param("id") // Get the ID from the URL parameter
+
+	// Delete the post with the given ID from the database
+	if err := db.DB.Delete(&models.Post{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete post"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Post deleted successfully"})
 }
 
 func getPosts(c *gin.Context) {
