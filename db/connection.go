@@ -3,11 +3,13 @@ package db
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"log"
-    "github.com/joho/godotenv"
-  "os"
+	"os"
+
 	mysqlDriver "github.com/go-sql-driver/mysql" // Explicit import for MySQL driver
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -43,9 +45,11 @@ func ConnectDatabase() {
 
 	// Define DSN with the custom TLS configuration
 	dsn := os.Getenv("DSN")
+	q := godotenv.Load(".env")
+	fmt.Println("fff",q)
 	if dsn == "" {
-        log.Fatal("DSN is not set in the environment")
-    }
+		log.Fatal("DSN is not set in the environment")
+	}
 	log.Println("Database DSN loaded successfully")
 
 	// Connect to the database
