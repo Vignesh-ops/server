@@ -11,7 +11,7 @@ import (
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"http://localhost:3000"}, // Allow requests from frontend
+        AllowOrigins:     []string{"https://server-production-33bb.up.railway.app/"}, // Allow requests from frontend
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         AllowCredentials: true, // Allow cookies and credentials
