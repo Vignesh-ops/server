@@ -31,7 +31,8 @@ func UserRoutes(r *gin.Engine) {
 	r.GET("/posts", getPosts)
 	r.POST("/posts", createPost)
 	r.DELETE("/posts/:id", deletePost) // New DELETE route
-	
+	r.PUT("/posts/:id", updatePost)  // Route for updating a post by ID
+
 }
 
 func deletePost(c *gin.Context) {
@@ -75,4 +76,31 @@ func createPost(c *gin.Context) {
 
 	// Respond with the created post
 	c.JSON(http.StatusCreated, gin.H{"message": "Post created successfully", "post": post})
+}
+
+
+func updatePost(c *gin.Context) {
+	var post models.Post
+	id := c.Param("id") // Get the ID from the URL parameter
+
+	// Find the post in the database by ID
+	if err := db.DB.First(&post, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
+		return
+	}
+
+	// Bind the new data from the request to the post struct
+	if err := c.ShouldBindJSON(&post); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update the post in the database
+	if err := db.DB.Save(&post).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update post"})
+		return
+	}
+
+	// Respond with the updated post
+	c.JSON(http.StatusOK, gin.H{"message": "Post updated successfully", "post": post})
 }
