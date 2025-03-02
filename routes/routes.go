@@ -36,7 +36,7 @@ type Message struct {
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowAllOrigins: true, // This allows all origins
+		AllowAllOrigins: "*", // This allows all origins
 		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:   []string{"Content-Length", "Content-Type"},
