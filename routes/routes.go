@@ -40,14 +40,14 @@ func UserRoutes(r *gin.Engine) {
 		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:   []string{"Content-Length", "Content-Type"},
-		AllowCredentials: true, // Optional: only set to true if you need to send cookies
+		AllowCredentials: false, // Optional: only set to true if you need to send cookies
 		MaxAge:          12 * time.Hour,
 	}))
 	r.OPTIONS("/*path", func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "false")
 		c.Status(http.StatusNoContent)
 	})
 
