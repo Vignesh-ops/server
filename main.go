@@ -2,11 +2,8 @@ package main
 
 import (
 
-
     "net/http"
-
     "github.com/gin-gonic/gin"
-
     "chat-app/routes"
      "chat-app/db"
 
@@ -20,6 +17,7 @@ func main() {
 
     // Connect to the database
 	db.ConnectDatabase()
+
 	routes.UserRoutes(r)
 
     // Routes

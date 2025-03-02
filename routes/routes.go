@@ -7,8 +7,32 @@ import (
 	"net/http"
 	"github.com/gin-contrib/cors"
 	"time"
+	"chat-app/middleware"
+	"golang.org/x/crypto/bcrypt"
+	"github.com/gorilla/websocket"
+	"sync"
+	"fmt"
+	"strconv"
+
+
 
 )
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	clients   = make(map[*websocket.Conn]int) // Map WebSocket connection to user ID
+	broadcast = make(chan Message)
+	mu        sync.Mutex
+)
+
+// Message struct
+type Message struct {
+	UserID  int    `json:"user_id"`
+	Content string `json:"content"`
+}
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
@@ -26,12 +50,30 @@ func UserRoutes(r *gin.Engine) {
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Status(http.StatusNoContent)
 	})
+
+
 	
 	// Register routes for posts
 	r.GET("/posts", getPosts)
 	r.POST("/posts", createPost)
+	r.POST("/register", Register)
+	r.POST("/login", Login)
+	r.POST("/logout", Logout)
+	r.GET("/users", getUsers)
+	r.GET("/messages", getMessages)
+
+
 	r.DELETE("/posts/:id", deletePost) // New DELETE route
 	r.PUT("/posts/:id", updatePost)  // Route for updating a post by ID
+	protected := r.Group("/")
+	protected.Use(middleware.AuthMiddleware()) // Apply Auth Middleware
+	{
+		protected.GET("/", dashboard)
+		protected.GET("/layout", dashboard) // Redirected here after login
+	}
+	r.GET("/ws", WsHandler)
+
+	go handleMessages()
 
 }
 
@@ -104,3 +146,161 @@ func updatePost(c *gin.Context) {
 	// Respond with the updated post
 	c.JSON(http.StatusOK, gin.H{"message": "Post updated successfully", "post": post})
 }
+
+
+func Register(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	user.Password = string(hashedPassword)
+
+	// Save user to DB
+	if err := db.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+}
+
+// Login user
+func Login(c *gin.Context) {
+	var user models.User
+	var input models.User
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user by email
+	if err := db.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	// Compare hashed password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	userIDStr := strconv.Itoa(int(user.ID))
+
+	// Store user ID in cookie
+	c.SetCookie("user_id", userIDStr, 3600, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Login successful","userid":user.ID, "username":user.Username})
+}
+
+// Logout user
+func Logout(c *gin.Context) {
+	c.SetCookie("user_id", "", -1, "/", "", false, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
+
+func dashboard(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"message": "Welcome to the dashboard!"})
+}
+
+
+
+func WsHandler(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Query("user_id")) // Pass user ID via query
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		fmt.Println("WebSocket upgrade error:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Register client
+	mu.Lock()
+	clients[conn] = userID
+	mu.Unlock()
+
+	for {
+		var msg Message
+		err := conn.ReadJSON(&msg)
+		if err != nil {
+			mu.Lock()
+			delete(clients, conn)
+			mu.Unlock()
+			break
+		}
+
+		msg.UserID = userID
+		broadcast <- msg
+	}
+}
+
+
+
+// Function to handle WebSocket messages
+func handleMessages() {
+	for {
+		msg := <-broadcast
+
+		mu.Lock()
+		for client, userID := range clients {
+			if userID != msg.UserID { // Send to all except sender
+				err := client.WriteJSON(msg)
+				if err != nil {
+					client.Close()
+					delete(clients, client)
+				}
+			}
+		}
+		mu.Unlock()
+
+		// Save message to DB
+		db.DB.Create(&models.Message{
+			UserID:  msg.UserID,
+			Content: msg.Content,
+		})
+	}
+}
+
+
+func getMessages(c *gin.Context) {
+    var messages []models.Message
+    if err := db.DB.Order("created_at ASC").Find(&messages).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+        return
+    }
+    c.JSON(http.StatusOK, messages)
+}
+
+
+
+func getUsers(c *gin.Context) {
+	// Retrieve user_id from the cookie
+	userID := c.Query("user_id") // Only assign 1 variable
+
+
+	// Convert user_id back to int
+
+	// Fetch users excluding logged-in user
+	var users []models.User
+	if err := db.DB.Select("id, username, email").Where("id != ?", userID).Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
