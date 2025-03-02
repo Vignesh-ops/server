@@ -36,18 +36,20 @@ type Message struct {
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowAllOrigins: "*", // This allows all origins
-		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:   []string{"Content-Length", "Content-Type"},
-		AllowCredentials: false, // Optional: only set to true if you need to send cookies
-		MaxAge:          12 * time.Hour,
+		AllowOrigins:     []string{"*"}, // Or specify origins like "http://localhost:3000"
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+		AllowCredentials: false, // Set to false if using "*" in AllowOrigins
+		MaxAge:           12 * time.Hour,
 	}))
+
+	// OPTIONS request handler
 	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Use a specific origin if credentials are needed
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "false")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "false") // Ensure it matches AllowCredentials
 		c.Status(http.StatusNoContent)
 	})
 
