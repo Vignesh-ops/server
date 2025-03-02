@@ -36,20 +36,20 @@ type Message struct {
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Or specify origins like "http://localhost:3000"
+		AllowOrigins:     []string{"https://v-cart-one.vercel.app"}, // Set specific allowed origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
-		AllowCredentials: false, // Set to false if using "*" in AllowOrigins
+		AllowCredentials: true, // Allowed because a specific origin is set
 		MaxAge:           12 * time.Hour,
 	}))
 
 	// OPTIONS request handler
 	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Use a specific origin if credentials are needed
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "https://v-cart-one.vercel.app") // Must match frontend
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "false") // Ensure it matches AllowCredentials
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Keep it consistent
 		c.Status(http.StatusNoContent)
 	})
 
