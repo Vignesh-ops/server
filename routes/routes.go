@@ -37,7 +37,7 @@ type Message struct {
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Set specific allowed origin
+		AllowOrigins:     []string{"https://server-54vw.onrender.com"}, // Set specific allowed origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
@@ -47,7 +47,7 @@ func UserRoutes(r *gin.Engine) {
 
 	// OPTIONS request handler
 	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Must match frontend
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "https://server-54vw.onrender.com") // Must match frontend
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Keep it consistent
