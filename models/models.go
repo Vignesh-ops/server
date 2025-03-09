@@ -26,4 +26,5 @@ type User struct {
 type Message struct {
 	UserID  int    `json:"user_id"`
 	Content string `json:"content"`
+    Fromid  int `json:"from_id" gorm:"column:from_id"`
 }

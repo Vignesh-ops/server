@@ -32,11 +32,12 @@ var (
 type Message struct {
 	UserID  int    `json:"user_id"`
 	Content string `json:"content"`
+    Fromid  int `json:"from_id" gorm:"column:from_id"`
 }
 
 func UserRoutes(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://v-cart-one.vercel.app"}, // Set specific allowed origin
+		AllowOrigins:     []string{"*"}, // Set specific allowed origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
@@ -46,7 +47,7 @@ func UserRoutes(r *gin.Engine) {
 
 	// OPTIONS request handler
 	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "https://v-cart-one.vercel.app") // Must match frontend
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Must match frontend
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Keep it consistent
@@ -223,6 +224,8 @@ func WsHandler(c *gin.Context) {
 		return
 	}
 
+	
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		fmt.Println("WebSocket upgrade error:", err)
@@ -235,6 +238,7 @@ func WsHandler(c *gin.Context) {
 	clients[conn] = userID
 	mu.Unlock()
 
+
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
@@ -244,8 +248,18 @@ func WsHandler(c *gin.Context) {
 			mu.Unlock()
 			break
 		}
-
+		fromIDStr := c.Query("from_id") // Get the query parameter as a string
+		if fromIDStr != "" {            // Check if it is not empty
+			fromID, err := strconv.Atoi(fromIDStr) // Convert it to an integer
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid FROM ID"})
+				return
+			}
+			msg.Fromid = fromID
+			// Use fromID (which is an int)
+		}
 		msg.UserID = userID
+		
 		broadcast <- msg
 	}
 }
@@ -273,32 +287,51 @@ func handleMessages() {
 		db.DB.Create(&models.Message{
 			UserID:  msg.UserID,
 			Content: msg.Content,
+			Fromid :msg.Fromid,
 		})
 	}
 }
 
-
 func getMessages(c *gin.Context) {
-    var messages []models.Message
-    if err := db.DB.Order("created_at ASC").Find(&messages).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
-        return
-    }
-    c.JSON(http.StatusOK, messages)
+	userID := c.Query("user_id")
+	fromID := c.Query("from_id")
+
+	fmt.Println("userID:", userID, "fromID:", fromID)
+
+	var messages []Message
+	query := db.DB.Order("created_at ASC") // Default query ordering
+
+	// Fetch only if both parameters are provided
+	if userID != "" && fromID != "" {
+		query = query.Where("user_id = ? AND from_id = ?", userID, fromID)
+	} else {
+		// Return an error if one parameter is missing
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and from_id are required"})
+		return
+	}
+
+	// Execute the query
+	if err := query.Find(&messages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+		return
+	}
+
+	c.JSON(http.StatusOK, messages)
 }
+
 
 
 
 func getUsers(c *gin.Context) {
 	// Retrieve user_id from the cookie
-	userID := c.Query("user_id") // Only assign 1 variable
-
+	// userID := c.Query("user_id") // Only assign 1 variable
+	// .Where("id != ?", userID)
 
 	// Convert user_id back to int
 
 	// Fetch users excluding logged-in user
 	var users []models.User
-	if err := db.DB.Select("id, username, email").Where("id != ?", userID).Find(&users).Error; err != nil {
+	if err := db.DB.Select("id, username, email").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
