@@ -36,8 +36,16 @@ type Message struct {
 }
 
 func UserRoutes(r *gin.Engine) {
+
+allowedOrigins := []string{"https://v-cart-one.vercel.app"} // Production URL
+
+	// Check if running in local environment
+	if gin.Mode() == gin.DebugMode {
+		allowedOrigins = append(allowedOrigins, "http://localhost:3000") // Add localhost for development
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://v-cart-one.vercel.app"}, // Set specific allowed origin
+		AllowOrigins:     allowedOrigins, // Set specific allowed origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
@@ -46,11 +54,14 @@ func UserRoutes(r *gin.Engine) {
 	}))
 
 	// OPTIONS request handler
-	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "https://v-cart-one.vercel.app") // Must match frontend
+r.OPTIONS("/*path", func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		if origin == "http://localhost:3000" || origin == "https://v-cart-one.vercel.app" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin) // Match frontend origin
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Keep it consistent
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Status(http.StatusNoContent)
 	})
 
@@ -292,6 +303,34 @@ func handleMessages() {
 	}
 }
 
+// func getMessages(c *gin.Context) {
+// 	userID := c.Query("user_id")
+// 	fromID := c.Query("from_id")
+
+// 	fmt.Println("userID:", userID, "fromID:", fromID)
+
+// 	var messages []Message
+// 	query := db.DB.Order("created_at ASC") // Default query ordering
+
+// 	// Fetch only if both parameters are provided
+// 	if userID != "" && fromID != "" {
+// 		query = query.Where("user_id = ? AND from_id = ? OR user_id = ? AND from_id = ?", userID, fromID,fromID, userID)
+// 	} else {
+// 		// Return an error if one parameter is missing
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and from_id are required"})
+// 		return
+// 	}
+
+// 	// Execute the query
+// 	if err := query.Find(&messages).Error; err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, messages)
+// }
+
+
 func getMessages(c *gin.Context) {
 	userID := c.Query("user_id")
 	fromID := c.Query("from_id")
@@ -303,7 +342,7 @@ func getMessages(c *gin.Context) {
 
 	// Fetch only if both parameters are provided
 	if userID != "" && fromID != "" {
-		query = query.Where("user_id = ? AND from_id = ?", userID, fromID)
+		query = query.Where("(user_id = ? AND from_id = ?) OR (user_id = ? AND from_id = ?)", userID, fromID, fromID, userID)
 	} else {
 		// Return an error if one parameter is missing
 		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and from_id are required"})
